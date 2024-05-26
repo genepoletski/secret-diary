@@ -7,6 +7,9 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 class MainActivity : AppCompatActivity() {
     private lateinit var newEntryInput: EditText
@@ -14,6 +17,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var entry: TextView
 
     private var newEntryText = ""
+    private var entries = mutableListOf<Entry>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,8 +63,31 @@ class MainActivity : AppCompatActivity() {
             return Toast.makeText(this, "Empty or blank input cannot be saved" ,Toast.LENGTH_SHORT).show()
         }
 
-        entry.text = newEntryText
+        entries.add(0, Entry(newEntryText, getFormattedDateTime()))
+        entry.text = entries.map { "${it.dateTime}\n${it.text}" }.joinToString("\n\n")
+
         newEntryInput.setText("")
         newEntryInput.clearFocus()
     }
+
+    private fun getFormattedDateTime(): String {
+        val currentInstant = Clock.System.now()
+        val zonedDateTime = currentInstant.toLocalDateTime(TimeZone.currentSystemDefault())
+
+        var formattedDateTime = zonedDateTime.year.toString().padStart(2, '0')
+        formattedDateTime += "-"
+        formattedDateTime += zonedDateTime.monthNumber.toString().padStart(2, '0')
+        formattedDateTime += "-"
+        formattedDateTime += zonedDateTime.dayOfMonth.toString().padStart(2, '0')
+        formattedDateTime += ' '
+        formattedDateTime += zonedDateTime.hour.toString().padStart(2, '0')
+        formattedDateTime += ":"
+        formattedDateTime += zonedDateTime.minute.toString().padStart(2, '0')
+        formattedDateTime += ":"
+        formattedDateTime += zonedDateTime.second.toString().padStart(2, '0')
+
+        return formattedDateTime
+    }
+
+    data class Entry(val text: String, val dateTime: String)
 }
