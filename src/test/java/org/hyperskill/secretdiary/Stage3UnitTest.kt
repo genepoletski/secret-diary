@@ -23,10 +23,11 @@ import java.text.SimpleDateFormat
 import java.time.Duration
 import java.util.Locale
 
+
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [CustomClockSystemShadow::class])
-class Stage2UnitTest : AbstractUnitTest<MainActivity>(MainActivity::class.java) {
+class Stage3UnitTest : AbstractUnitTest<MainActivity>(MainActivity::class.java) {
 
     private val etNewWriting by lazy {
         val etNewWriting = activity.findViewByString<EditText>("etNewWriting")
@@ -56,6 +57,15 @@ class Stage2UnitTest : AbstractUnitTest<MainActivity>(MainActivity::class.java) 
         tvDiary
     }
 
+    private val btnUndo by lazy {
+        val btnUndo = activity.findViewByString<Button>("btnUndo")
+
+        val messageBtnUndoWrongText = "The text of btnUndo should be \"Undo\""
+        assertEquals(messageBtnUndoWrongText, "Undo", btnUndo.text.toString())
+
+        btnUndo
+    }
+
     @Test
     fun test00_checkEditText() {
         testActivity {
@@ -78,7 +88,14 @@ class Stage2UnitTest : AbstractUnitTest<MainActivity>(MainActivity::class.java) 
     }
 
     @Test
-    fun test03_checkSaving() {
+    fun test03_checkButtonUndo() {
+        testActivity {
+            btnUndo
+        }
+    }
+
+    @Test
+    fun test04_checkSavingAndUndo() {
         testActivity {
             // ensure all views used on test are initialized with initial state
             etNewWriting
@@ -161,16 +178,44 @@ class Stage2UnitTest : AbstractUnitTest<MainActivity>(MainActivity::class.java) 
             val messageWrongOutput2 =
                 "The newer writing should be on the top, separated by an empty line from the older one"
             assertEquals(messageWrongOutput2, expectedOutput2, userOutput2)
+
+            // Until this, this test function is the same as in the previous stage
+            // Now let's test the "Undo" button
+
+            performUndoAndYesClick()
+
+            // After pressing the Undo button, the result should be the same as after the first save
+
+            val expectedOutput3 = expectedOutput1
+            val userOutput3 = tvDiary.text.toString()
+
+            val messageWrongOutput3 =
+                "The \"Undo\" button should remove the last note if \"Yes\" selected on the AlertDialog"
+            assertEquals(messageWrongOutput3, expectedOutput3, userOutput3)
+
+
+            btnUndo.clickAndRun()
+            getLatestAlertDialog()
+                .getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
+                .clickAndRun()
+
+            val expectedOutput4 = expectedOutput3
+            val userOutput4 = tvDiary.text.toString()
+
+            val messageWrongOutput4 =
+                "The \"Undo\" button should not do anything if \"No\" selected on the AlertDialog"
+            assertEquals(messageWrongOutput4, expectedOutput4, userOutput4)
         }
     }
 
     @Test
-    fun test04_checkSavingBlank() {
+    fun test05_checkSavingBlank() {
         testActivity {
             // ensure all views used on test are initialized with initial state
             etNewWriting
             btnSave
             tvDiary
+            btnUndo
             //
 
             val sampleInputText1 = "First input"
@@ -192,13 +237,65 @@ class Stage2UnitTest : AbstractUnitTest<MainActivity>(MainActivity::class.java) 
 
             val userToastText = ShadowToast.getTextOfLatestToast()
             val savingBlankToastText = "Empty or blank input cannot be saved"
-            val messageWrongToastText = "When trying to save an empty or blank string, " +
-                    "the appropriate Toast message should be shown"
+            val messageWrongToastText = "When trying to save an empty or blank string, the appropriate Toast message should be shown"
             assertEquals(messageWrongToastText, savingBlankToastText, userToastText)
 
             val diaryTextAfterSaveBlank = tvDiary.text
             val messageWrongInputFormat = "Do not save blank text!"
             assertEquals(messageWrongInputFormat, diaryTextBeforeSaveBlank, diaryTextAfterSaveBlank)
         }
+    }
+
+    @Test
+    fun test06_checkUndoBlank() {
+        testActivity {
+            // ensure all views used on test are initialized with initial state
+            etNewWriting
+            btnSave
+            tvDiary
+            btnUndo
+            //
+
+            performUndoAndYesClick()
+            performUndoAndYesClick()
+
+
+            val sampleInputText1 = "Didn't break app"
+            etNewWriting.setText(sampleInputText1)
+            val instant1 = Clock.System.now()
+            val simpleDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val dateText1 = simpleDateFormat.format(instant1.toEpochMilliseconds())
+            btnSave.clickAndRun()
+
+            val diaryText1 = """
+            $dateText1
+            $sampleInputText1
+        """.trimIndent()
+
+            val actualText = tvDiary.text.toString()
+
+            assertEquals(
+                "It should be possible to save after clicking btnUndo with blank tvDiary",
+                diaryText1,
+                actualText
+            )
+
+            performUndoAndYesClick()
+            performUndoAndYesClick()
+
+            assertEquals(
+                "Clicking btnUndo with blank tvDiary should keep tvDiary blank",
+                diaryText1,
+                actualText
+            )
+        }
+    }
+
+    private fun performUndoAndYesClick() {
+        btnUndo.clickAndRun()
+
+        getLatestAlertDialog()
+            .getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+            .clickAndRun()
     }
 }

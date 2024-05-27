@@ -1,4 +1,5 @@
 package org.hyperskill.secretdiary
+import android.app.AlertDialog
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,6 +15,7 @@ import kotlinx.datetime.toLocalDateTime
 class MainActivity : AppCompatActivity() {
     private lateinit var newEntryInput: EditText
     private lateinit var saveNewEntryButton: Button
+    private lateinit var undoLastEntryButton: Button
     private lateinit var entry: TextView
 
     private var newEntryText = ""
@@ -43,6 +45,7 @@ class MainActivity : AppCompatActivity() {
     private fun initLayout() {
         newEntryInput = findViewById(R.id.etNewWriting)
         saveNewEntryButton = findViewById(R.id.btnSave)
+        undoLastEntryButton = findViewById(R.id.btnUndo)
         entry = findViewById(R.id.tvDiary)
 
         newEntryInput.addTextChangedListener(object : TextWatcher {
@@ -56,6 +59,11 @@ class MainActivity : AppCompatActivity() {
         })
 
         saveNewEntryButton.setOnClickListener { handleSaveNewEntryClicked() }
+        undoLastEntryButton.setOnClickListener { handleUndoLastEntryClicked() }
+    }
+
+    private fun renderEntries() {
+        entry.text = entries.map { "${it.dateTime}\n${it.text}" }.joinToString("\n\n")
     }
 
     private fun handleSaveNewEntryClicked() {
@@ -64,10 +72,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         entries.add(0, Entry(newEntryText, getFormattedDateTime()))
-        entry.text = entries.map { "${it.dateTime}\n${it.text}" }.joinToString("\n\n")
+
+        renderEntries()
 
         newEntryInput.setText("")
         newEntryInput.clearFocus()
+    }
+
+    private fun handleUndoLastEntryClicked() {
+        AlertDialog.Builder(this)
+            .setTitle("Remove last note")
+            .setMessage("Do you really want to remove the last writing? This operation cannot be undone!")
+            .setPositiveButton("Yes") { _, _ ->
+                if (entries.isNotEmpty()) {
+                    entries.removeFirst()
+                    renderEntries()
+                }
+            }
+            .setNegativeButton("No", null)
+            .show()
     }
 
     private fun getFormattedDateTime(): String {
