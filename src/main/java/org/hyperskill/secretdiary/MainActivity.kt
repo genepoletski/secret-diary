@@ -1,5 +1,7 @@
 package org.hyperskill.secretdiary
 import android.app.AlertDialog
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -8,11 +10,19 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+const val PREFERENCES_NAME = "PREF_DIARY"
+const val KEY_DIARY_TEXT = "KEY_DIARY_TEXT"
+
 class MainActivity : AppCompatActivity() {
+    private lateinit var sharedPreferences: SharedPreferences
+    private val gson = Gson()
+
     private lateinit var newEntryInput: EditText
     private lateinit var saveNewEntryButton: Button
     private lateinit var undoLastEntryButton: Button
@@ -24,6 +34,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        sharedPreferences = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        entries = loadEntries()
+
         initLayout()
 
         /*
@@ -60,6 +74,8 @@ class MainActivity : AppCompatActivity() {
 
         saveNewEntryButton.setOnClickListener { handleSaveNewEntryClicked() }
         undoLastEntryButton.setOnClickListener { handleUndoLastEntryClicked() }
+
+        renderEntries()
     }
 
     private fun renderEntries() {
@@ -72,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         entries.add(0, Entry(newEntryText, getFormattedDateTime()))
+        saveEntries(entries)
 
         renderEntries()
 
@@ -86,6 +103,7 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("Yes") { _, _ ->
                 if (entries.isNotEmpty()) {
                     entries.removeFirst()
+                    saveEntries(entries)
                     renderEntries()
                 }
             }
@@ -113,4 +131,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     data class Entry(val text: String, val dateTime: String)
+
+    private fun saveEntries(entries: MutableList<Entry>) {
+        val editor = sharedPreferences.edit()
+        val json = gson.toJson(entries)
+        editor.putString(KEY_DIARY_TEXT, json)
+        editor.apply()
+    }
+
+    private fun loadEntries(): MutableList<Entry> {
+        val json = sharedPreferences.getString(KEY_DIARY_TEXT, null)
+        return if (json != null) {
+            try {
+                val type = object : TypeToken<MutableList<Entry>>() {}.type
+                gson.fromJson<MutableList<Entry>>(json, type) ?: mutableListOf()
+            } catch (e: Exception) {
+                e.printStackTrace() // Log the error
+                mutableListOf()
+            }
+        } else {
+            mutableListOf()
+        }
+    }
 }
